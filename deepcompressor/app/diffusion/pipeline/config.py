@@ -34,7 +34,7 @@ from ..nn.patch import (
     shift_input_activations,
 )
 
-#from nunchaku.models.text_encoders.t5_encoder import NunchakuT5EncoderModel
+from nunchaku.models.text_encoders.t5_encoder import NunchakuT5EncoderModel
 
 __all__ = ["DiffusionPipelineConfig"]
 
@@ -361,10 +361,12 @@ class DiffusionPipelineConfig:
             pipeline = FluxKontextPipeline.from_pretrained(path, torch_dtype=dtype)
         elif name == "flux.1-kontext-redcraft":
             repo = "black-forest-labs/FLUX.1-Kontext-dev"
+            text_encoder_2_path = "/root/autodl-tmp/awq-int4-flux.1-t5xxl.safetensors "
             print('flux.1-kontext-redcraft >> create pipeline')
             vae = AutoencoderKL.from_pretrained(repo, subfolder="vae", torch_dtype=dtype)
             text_encoder = CLIPTextModel.from_pretrained(repo, subfolder="text_encoder", torch_dtype=dtype)
-            text_encoder_2 = T5EncoderModel.from_pretrained(repo, subfolder="text_encoder_2", torch_dtype=dtype) 
+           
+            text_encoder_2 = NunchakuT5EncoderModel.from_pretrained(text_encoder_2_path, local_files_only=True, torch_dtype=dtype)#torch.bfloat16)
             pipeline = FluxKontextPipeline.from_single_file(path, config=repo, text_encoder=text_encoder, text_encoder_2=text_encoder_2, vae=vae, torch_dtype=dtype)
         elif name.startswith("sana-"):
             if dtype == torch.bfloat16:
