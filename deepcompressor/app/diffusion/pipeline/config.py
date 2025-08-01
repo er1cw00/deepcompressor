@@ -34,7 +34,7 @@ from ..nn.patch import (
     shift_input_activations,
 )
 
-from nunchaku.models.text_encoders.t5_encoder import NunchakuT5EncoderModel
+#from nunchaku.models.text_encoders.t5_encoder import NunchakuT5EncoderModel
 
 __all__ = ["DiffusionPipelineConfig"]
 
