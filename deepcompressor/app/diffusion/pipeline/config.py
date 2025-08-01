@@ -6,13 +6,17 @@ import typing as tp
 from dataclasses import dataclass, field
 
 import torch
+
+from transformers import CLIPTextModel, CLIPTokenizer
 from diffusers.pipelines import (
     AutoPipelineForText2Image,
     DiffusionPipeline,
     FluxControlPipeline,
     FluxFillPipeline,
+    FluxKontextPipeline,
     SanaPipeline,
 )
+from diffusers import AutoencoderKL
 from omniconfig import configclass
 from torch import nn
 from transformers import PreTrainedModel, PreTrainedTokenizer, T5EncoderModel
@@ -29,6 +33,8 @@ from ..nn.patch import (
     replace_up_block_conv_with_concat_conv,
     shift_input_activations,
 )
+
+from nunchaku.models.text_encoders.t5_encoder import NunchakuT5EncoderModel
 
 __all__ = ["DiffusionPipelineConfig"]
 
@@ -350,6 +356,15 @@ class DiffusionPipelineConfig:
             pipeline = FluxControlPipeline.from_pretrained(path, torch_dtype=dtype)
         elif name == "flux.1-fill-dev":
             pipeline = FluxFillPipeline.from_pretrained(path, torch_dtype=dtype)
+        elif name == "flux.1-kontext-dev":
+            path = "black-forest-labs/FLUX.1-Kontext-dev"
+            pipeline = FluxKontextPipeline.from_pretrained(path, torch_dtype=dtype)
+        elif name == "flux.1-kontext-redcraft":
+            repo = "black-forest-labs/FLUX.1-Kontext-dev"
+            vae = AutoencoderKL.from_pretrained(repo, subfolder="vae", torch_dtype=dtype)
+            text_encoder = CLIPTextModel.from_pretrained(repo, subfolder="text_encoder", torch_dtype=dtype)
+            text_encoder_2 = T5EncoderModel.from_pretrained(repo, subfolder="text_encoder_2", torch_dtype=dtype) 
+            pipeline = FluxKontextPipeline.from_single_file(path, config=repo, text_encoder=text_encoder, text_encoder_2=text_encoder_2, vae=vae, torch_dtype=dtype)
         elif name.startswith("sana-"):
             if dtype == torch.bfloat16:
                 pipeline = SanaPipeline.from_pretrained(path, variant="bf16", torch_dtype=dtype, use_safetensors=True)
@@ -360,6 +375,7 @@ class DiffusionPipelineConfig:
         else:
             pipeline = AutoPipelineForText2Image.from_pretrained(path, torch_dtype=dtype)
         pipeline = pipeline.to(device)
+        pipeline.enable_sequential_cpu_offload()
         model = pipeline.unet if hasattr(pipeline, "unet") else pipeline.transformer
         replace_fused_linear_with_concat_linear(model)
         replace_up_block_conv_with_concat_conv(model)
