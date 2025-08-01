@@ -68,7 +68,36 @@ def collect(config: DiffusionPtqRunConfig, dataset: datasets.Dataset):
                 pipeline_kwargs["mask_image"] = controls[1]
             else:
                 pipeline_kwargs["control_image"] = controls
+                
+        # Handle meta tensors by moving individual components  
+        try:  
+            pipeline = pipeline.to("cuda")  
+        except NotImplementedError:  
+            # Move individual pipeline components that have to_empty method  
+            if hasattr(pipeline, 'transformer') and pipeline.transformer is not None:  
+                try:  
+                    pipeline.transformer = pipeline.transformer.to("cuda")  
+                except NotImplementedError:  
+                    pipeline.transformer = pipeline.transformer.to_empty(device="cuda")  
 
+            if hasattr(pipeline, 'text_encoder') and pipeline.text_encoder is not None:  
+                try:  
+                    pipeline.text_encoder = pipeline.text_encoder.to("cuda")  
+                except NotImplementedError:  
+                    pipeline.text_encoder = pipeline.text_encoder.to_empty(device="cuda")  
+
+            if hasattr(pipeline, 'text_encoder_2') and pipeline.text_encoder_2 is not None:  
+                try:  
+                    pipeline.text_encoder_2 = pipeline.text_encoder_2.to("cuda")  
+                except NotImplementedError:  
+                    pipeline.text_encoder_2 = pipeline.text_encoder_2.to_empty(device="cuda")  
+
+            if hasattr(pipeline, 'vae') and pipeline.vae is not None:  
+                try:  
+                    pipeline.vae = pipeline.vae.to("cuda")  
+                except NotImplementedError:  
+                    pipeline.vae = pipeline.vae.to_empty(device="cuda")
+                    
         result_images = pipeline(prompts, generator=generators, **pipeline_kwargs).images
         num_guidances = (len(caches) // batch_size) // config.eval.num_steps
         num_steps = len(caches) // (batch_size * num_guidances)

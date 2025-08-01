@@ -296,12 +296,14 @@ def main(config: DiffusionPtqRunConfig, logging_level: int = tools.logging.DEBUG
 
     logger.info("=== Start Evaluating ===")
     logger.info("* Building diffusion model pipeline")
+    
     tools.logging.Formatter.indent_inc()
     pipeline = config.pipeline.build()
     if "nf4" not in config.pipeline.name and "gguf" not in config.pipeline.name:
         model = DiffusionModelStruct.construct(pipeline)
         tools.logging.Formatter.indent_dec()
         save_dirpath = os.path.join(config.output.running_job_dirpath, "cache")
+        
         if config.save_model:
             if config.save_model.lower() in ("false", "none", "null", "nil"):
                 save_model = False
@@ -374,6 +376,7 @@ def main(config: DiffusionPtqRunConfig, logging_level: int = tools.logging.DEBUG
 
 if __name__ == "__main__":
     config, _, unused_cfgs, unused_args, unknown_args = DiffusionPtqRunConfig.get_parser().parse_known_args()
+
     assert isinstance(config, DiffusionPtqRunConfig)
     if len(unused_cfgs) > 0:
         tools.logging.warning(f"Unused configurations: {unused_cfgs}")
