@@ -351,7 +351,6 @@ class DiffusionAttentionStruct(AttentionStruct):
         **kwargs,
     ) -> "DiffusionAttentionStruct":
         if isinstance(module, FluxAttention):  
-            print("DiffusionAttentionStruct >> _default_construct")
             # FluxAttention has different attribute names than standard attention  
             with_rope = True  
             num_query_heads = module.heads  # FluxAttention uses 'heads', not 'num_heads'  
