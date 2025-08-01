@@ -168,6 +168,40 @@ def ptq(  # noqa: C901
         gc.collect()
         torch.cuda.empty_cache()
     elif quant_wgts:
+        logger.info("* Ensuring model is on actual device before quantization")  
+          
+        # Check if model has meta tensors  
+        has_meta_tensors = any(param.is_meta for param in model.module.parameters())  
+          
+        if has_meta_tensors:  
+            logger.info("* Model contains meta tensors, materializing to actual device")  
+              
+            # Option 1: Use to_empty() and reload weights (recommended)  
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  
+              
+            # Store original state dict if available  
+            try:  
+                original_state_dict = model.module.state_dict()  
+                model.module = model.module.to_empty(device=device)  
+                model.module.load_state_dict(original_state_dict)  
+                logger.info("* Successfully materialized model with original weights")  
+            except Exception as e:  
+                logger.warning(f"* Failed to preserve weights during materialization: {e}")  
+                # Fallback: just move to empty device (weights will be zero)  
+                model.module = model.module.to_empty(device=device)  
+                logger.warning("* Model moved to device but weights may be uninitialized")  
+        else:  
+            # Model already has real tensors, just ensure it's on the right device  
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  
+            model.module = model.module.to(device)  
+          
+        # Verify no meta tensors remain  
+        remaining_meta = [name for name, param in model.module.named_parameters() if param.is_meta]  
+        if remaining_meta:  
+            raise RuntimeError(f"Parameters still on meta device: {remaining_meta}")  
+          
+        logger.info("* Model successfully prepared for quantization")
+
         logger.info("* Quantizing weights")
         tools.logging.Formatter.indent_inc()
         quantizer_state_dict, quantizer_load_from = None, ""
