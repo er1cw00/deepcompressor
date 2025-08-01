@@ -361,6 +361,7 @@ class DiffusionPipelineConfig:
             pipeline = FluxKontextPipeline.from_pretrained(path, torch_dtype=dtype)
         elif name == "flux.1-kontext-redcraft":
             repo = "black-forest-labs/FLUX.1-Kontext-dev"
+            print('flux.1-kontext-redcraft >> create pipeline')
             vae = AutoencoderKL.from_pretrained(repo, subfolder="vae", torch_dtype=dtype)
             text_encoder = CLIPTextModel.from_pretrained(repo, subfolder="text_encoder", torch_dtype=dtype)
             text_encoder_2 = T5EncoderModel.from_pretrained(repo, subfolder="text_encoder_2", torch_dtype=dtype) 
@@ -375,7 +376,8 @@ class DiffusionPipelineConfig:
         else:
             pipeline = AutoPipelineForText2Image.from_pretrained(path, torch_dtype=dtype)
         pipeline = pipeline.to(device)
-        pipeline.enable_sequential_cpu_offload()
+        print(f"device : {device}")
+       # pipeline.enable_sequential_cpu_offload()
         model = pipeline.unet if hasattr(pipeline, "unet") else pipeline.transformer
         replace_fused_linear_with_concat_linear(model)
         replace_up_block_conv_with_concat_conv(model)
