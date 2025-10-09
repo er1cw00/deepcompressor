@@ -172,6 +172,8 @@ class DiffusionCalibCacheLoader(BaseCalibCacheLoader):
                 ),
                 outputs=TensorCache(channels_dim=-1, reshape=LinearReshapeFn()),
             )
+        #elif isinstance(module, FluxAttention):
+            
         elif isinstance(module, Attention):
             return IOTensorsCache(
                 inputs=TensorsCache(
