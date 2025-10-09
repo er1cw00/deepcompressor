@@ -9,7 +9,16 @@ from deepcompressor.utils.common import hash_str_to_int
 
 __all__ = ["get_control"]
 
-
+def check_pipeline_on_meta(pipeline):
+    def _check_is_on_meta(model_name, model):
+        for name, param in model.named_parameters():
+            if param.device.type == "meta":
+                print(f"⚠️ [{model_name}.{name}] shape({param.shape})still on meta")
+    _check_is_on_meta('transformer', pipeline.transformer)
+    _check_is_on_meta('vae', pipeline.vae)
+    _check_is_on_meta('text_encoder 1', pipeline.text_encoder)
+    _check_is_on_meta('text_encoder 2', pipeline.text_encoder_2)
+    
 def update_mask(mask: np.ndarray, x: int, y: int, radius: int | float):
     mask = mask.copy()
     H, W = mask.shape
