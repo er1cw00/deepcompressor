@@ -34,7 +34,7 @@ from diffusers.models.transformers.transformer_flux import (
     FluxSingleTransformerBlock,
     FluxTransformer2DModel,
     FluxTransformerBlock,
-    FluxAttention,
+#    FluxAttention,
 )
 from diffusers.models.transformers.transformer_sd3 import SD3Transformer2DModel
 from diffusers.models.unets.unet_2d import UNet2DModel
@@ -118,10 +118,10 @@ DIT_PIPELINE_CLS = tp.Union[
 ]
 PIPELINE_CLS = tp.Union[UNET_PIPELINE_CLS, DIT_PIPELINE_CLS]
 
-ATTENTION_CLS = tp.Union[  
-    # existing types...  
-    FluxAttention,  
-]
+# ATTENTION_CLS = tp.Union[  
+#     # existing types...  
+#     FluxAttention,  
+# ]
 
 @dataclass(kw_only=True)
 class DiffusionModuleStruct(BaseModuleStruct):
@@ -350,47 +350,47 @@ class DiffusionAttentionStruct(AttentionStruct):
         idx: int = 0,
         **kwargs,
     ) -> "DiffusionAttentionStruct":
-        if isinstance(module, FluxAttention):  
-            # FluxAttention has different attribute names than standard attention  
-            with_rope = True  
-            num_query_heads = module.heads  # FluxAttention uses 'heads', not 'num_heads'  
-            num_key_value_heads = module.heads  # FLUX typically uses same for q/k/v  
+        # if isinstance(module, FluxAttention):  
+        #     # FluxAttention has different attribute names than standard attention  
+        #     with_rope = True  
+        #     num_query_heads = module.heads  # FluxAttention uses 'heads', not 'num_heads'  
+        #     num_key_value_heads = module.heads  # FLUX typically uses same for q/k/v  
               
-            # FluxAttention doesn't have 'to_out', but may have other output projections  
-            # Check what output projection attributes actually exist  
-            o_proj = None  
-            o_proj_rname = ""  
+        #     # FluxAttention doesn't have 'to_out', but may have other output projections  
+        #     # Check what output projection attributes actually exist  
+        #     o_proj = None  
+        #     o_proj_rname = ""  
               
-            # Try to find the correct output projection  
-            if hasattr(module, 'to_out') and module.to_out is not None:  
-                o_proj = module.to_out[0] if isinstance(module.to_out, (list, tuple)) else module.to_out  
-                o_proj_rname = "to_out.0" if isinstance(module.to_out, (list, tuple)) else "to_out"  
-            elif hasattr(module, 'to_add_out'):  
-                o_proj = module.to_add_out  
-                o_proj_rname = "to_add_out"  
+        #     # Try to find the correct output projection  
+        #     if hasattr(module, 'to_out') and module.to_out is not None:  
+        #         o_proj = module.to_out[0] if isinstance(module.to_out, (list, tuple)) else module.to_out  
+        #         o_proj_rname = "to_out.0" if isinstance(module.to_out, (list, tuple)) else "to_out"  
+        #     elif hasattr(module, 'to_add_out'):  
+        #         o_proj = module.to_add_out  
+        #         o_proj_rname = "to_add_out"  
               
-            q_proj, k_proj, v_proj = module.to_q, module.to_k, module.to_v  
-            q_proj_rname, k_proj_rname, v_proj_rname = "to_q", "to_k", "to_v"  
-            q, k, v = module.to_q, module.to_k, module.to_v  
-            q_rname, k_rname, v_rname = "to_q", "to_k", "to_v"  
+        #     q_proj, k_proj, v_proj = module.to_q, module.to_k, module.to_v  
+        #     q_proj_rname, k_proj_rname, v_proj_rname = "to_q", "to_k", "to_v"  
+        #     q, k, v = module.to_q, module.to_k, module.to_v  
+        #     q_rname, k_rname, v_rname = "to_q", "to_k", "to_v"  
               
-            # Handle the add_* projections that FluxAttention has  
-            add_q_proj = getattr(module, "add_q_proj", None)  
-            add_k_proj = getattr(module, "add_k_proj", None)   
-            add_v_proj = getattr(module, "add_v_proj", None)  
-            add_o_proj = getattr(module, "to_add_out", None)  
-            add_q_proj_rname = "add_q_proj" if add_q_proj else ""  
-            add_k_proj_rname = "add_k_proj" if add_k_proj else ""  
-            add_v_proj_rname = "add_v_proj" if add_v_proj else ""  
-            add_o_proj_rname = "to_add_out" if add_o_proj else ""  
+        #     # Handle the add_* projections that FluxAttention has  
+        #     add_q_proj = getattr(module, "add_q_proj", None)  
+        #     add_k_proj = getattr(module, "add_k_proj", None)   
+        #     add_v_proj = getattr(module, "add_v_proj", None)  
+        #     add_o_proj = getattr(module, "to_add_out", None)  
+        #     add_q_proj_rname = "add_q_proj" if add_q_proj else ""  
+        #     add_k_proj_rname = "add_k_proj" if add_k_proj else ""  
+        #     add_v_proj_rname = "add_v_proj" if add_v_proj else ""  
+        #     add_o_proj_rname = "to_add_out" if add_o_proj else ""  
               
-            kwargs = (  
-                "encoder_hidden_states",  
-                "attention_mask",   
-                "image_rotary_emb",  
-            )  
-            cross_attention = add_k_proj is not None
-        elif module.is_cross_attention:
+        #     kwargs = (  
+        #         "encoder_hidden_states",  
+        #         "attention_mask",   
+        #         "image_rotary_emb",  
+        #     )  
+        #     cross_attention = add_k_proj is not None
+        if module.is_cross_attention:
             q_proj, k_proj, v_proj = module.to_q, None, None
             add_q_proj, add_k_proj, add_v_proj, add_o_proj = None, module.to_k, module.to_v, None
             q_proj_rname, k_proj_rname, v_proj_rname = "to_q", "", ""
@@ -2015,4 +2015,4 @@ DiffusionTransformerStruct.register_factory(Transformer2DModel, DiffusionTransfo
 
 DiffusionModelStruct.register_factory(tp.Union[PIPELINE_CLS, MODEL_CLS], DiffusionModelStruct._default_construct)
 
-DiffusionAttentionStruct.register_factory(ATTENTION_CLS, DiffusionAttentionStruct._default_construct)
+# DiffusionAttentionStruct.register_factory(ATTENTION_CLS, DiffusionAttentionStruct._default_construct)
