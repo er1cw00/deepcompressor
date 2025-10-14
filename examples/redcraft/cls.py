@@ -33,8 +33,8 @@ def dump_checkpoint_parameter(safetensor_path):
                 tensor = f.get_tensor(tensor_name)
                 #if tensor.dtype == torch.float8_e2m3fn
                 print(f"{tensor_name:64} shape:{str(tensor.shape):48} dtype:{tensor.dtype}")     
-                if tensor_name == 'model.diffusion_model.single_blocks.31.linear1.scale_input' or tensor_name == 'model.diffusion_model.single_blocks.31.linear1.scale_weight':
-                    print(f'  value: {tensor}') 
+             #   if tensor_name == 'model.diffusion_model.single_blocks.31.linear1.scale_input' or tensor_name == 'model.diffusion_model.single_blocks.31.linear1.scale_weight':
+             #       print(f'  value: {tensor}') 
             return False
     except Exception as e:
         print(f"Error reading {safetensor_path}: {e}")
@@ -141,8 +141,8 @@ def load_flux_model(path):
 
 # 替换成你的路径
 #filepath = '/home/eric/workspace/AI/sd/temp/deepcompressor/examples/redcraft/redcraft-1.safetensors'
-filepath = "./FLUX.1-Kontext-dev-RedCraft.safetensors"
 #filepath = "/home/eric/workspace/AI/sd/ComfyUI/models/diffusion_models/svdq-int4_r32-flux.1-kontext-dev.safetensors"
+filepath= "/root/autodl-tmp/models/redcraft_fp16.safetensors"
 dump_checkpoint_parameter(filepath)
 
 # if check_class_name(filepath):

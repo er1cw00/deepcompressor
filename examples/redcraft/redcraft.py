@@ -46,7 +46,7 @@ def load_redcraft_transformer():
     #transformer_path='/home/eric/workspace/AI/sd/ComfyUI/models/unet/redcraft.safetensors'
     #transformer_path = '/home/eric/workspace/AI/sd/temp/deepcompressor/examples/redcraft/redcraft-1.safetensors'
     #transformer = QuantizedFluxTransformer2DModel.from_pretrained(transformer_path).to(dtype)
-    transformer_path = '/home/eric/workspace/AI/sd/temp/deepcompressor/examples/redcraft/red/transformer'
+    transformer_path = '/root/autodl-tmp/models/redcraft/transformer'
     print('load_redcraft_transformer >> from single file' )
     transformer = FluxTransformer2DModel.from_pretrained(
         transformer_path,
@@ -68,6 +68,7 @@ def load_redcraft_transformer():
     return transformer
 
 def load_nunchaku_transformer():
+    
     transformer_path="/home/eric/workspace/AI/sd/ComfyUI/models/diffusion_models/svdq-fp4_r32-flux.1-kontext-dev.safetensors"
     transformer = NunchakuFluxTransformer2dModel.from_pretrained(
         transformer_path
@@ -84,13 +85,13 @@ def load_kontext_pipeline(transformer):
     
     
 
-    #text_encoder_1_path = 
-    text_encoder_2_path = "/home/eric/workspace/AI/sd/ComfyUI/models/clip/awq-int4-flux.1-t5xxl.safetensors"
+    text_encoder_2_path = "/root/autodl-tmp/models/awq-int4-flux.1-t5xxl.safetensors"
+    #text_encoder_2_path = "/home/eric/workspace/AI/sd/ComfyUI/models/clip/awq-int4-flux.1-t5xxl.safetensors"
 
     text_encoder_1 = CLIPTextModel.from_pretrained(repo, subfolder="text_encoder", torch_dtype=dtype)
 
     text_encoder_2 = NunchakuT5EncoderModel.from_pretrained(
-        "/home/eric/workspace/AI/sd/ComfyUI/models/clip/awq-int4-flux.1-t5xxl.safetensors"
+        text_encoder_2_path
         #"mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
     )
 
@@ -108,10 +109,10 @@ def load_kontext_pipeline(transformer):
 
 def run_kontext_pipeline(pipeline):
 
-    image = load_image("/home/eric/workspace/AI/sd/temp/nunchaku/examples/robot.png").convert("RGB")
+    image = load_image("/root/autodl-tmp/robot.png").convert("RGB")
     prompt = "Make red Pikachu hold a sign that says 'mother is awesome', yarn art style, detailed, red colors"
     image = pipeline(image=image, prompt=prompt, num_inference_steps=10, guidance_scale=2.5).images[0]
-    image.save("flux-kontext-dev.png")
+    image.save("/root/autodl-tmp/flux-kontext-dev.png")
 
 print('>>>>')
 #transformer = load_nunchaku_transformer()
