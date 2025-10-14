@@ -6,7 +6,7 @@
   regardless of its dtype.
 * Documentation cleaned up to reflect this behaviour.
 """
-
+import os
 import argparse
 import re
 import sys
@@ -59,8 +59,8 @@ def in_place_convert(state: dict[str, torch.Tensor], *, out_dtype: torch.dtype, 
 
     # ---- 2) Cast remaining tensors & cleanup ----
     for k in list(state.keys()):
+        
         t = state[k]
-
         if strip_fp8:
             # unconditional removal of any *.scaled_fp8 tensor
             if k.endswith(".scaled_fp8"):
@@ -90,6 +90,8 @@ def main() -> None:
     ap.add_argument("--dtype", choices=DTYPE_MAP.keys(), default="bf16", help="Target dtype for *all* tensors (default: bf16)")
     ap.add_argument("--strip-fp8", action="store_true", help="Remove FP8 & scale tensors after convert to minimise size")
     args = ap.parse_args()
+
+    print("My PID is:", os.getpid())
 
     out_dtype = DTYPE_MAP[args.dtype]
 
