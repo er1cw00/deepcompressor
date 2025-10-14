@@ -25,6 +25,27 @@ from .action import CacheAction
 __all__ = ["BaseCalibCacheLoader"]
 
 
+def check_is_ref(tree: tp.Any, ref: tp.Any, prefix: str=''):
+    """Copy tree-structured data with reference."""
+    if isinstance(tree, dict):
+        for k, v in tree.items():
+            check_is_ref(v, ref[k], prefix=f"{prefix}.{k}" if prefix else str(k))
+    elif isinstance(tree, (list, tuple)):
+        for i, v in enumerate(tree):
+            check_is_ref(v, ref[i], prefix=f"{prefix}[{i}]" if prefix else f"[{i}]")
+
+    elif isinstance(tree, torch.Tensor):
+        assert isinstance(ref, torch.Tensor), f"source is a tensor but reference is not: {type(ref)}"
+        assert tree.shape == ref.shape, f"source.shape={tree.shape} != reference.shape={ref.shape}"
+        size_bytes = tree.element_size() * tree.nelement()
+        size_mb = size_bytes / 1024 / 1024
+        if tree.data_ptr() == ref.data_ptr() or tree.allclose(ref):
+            oo =  tree.allclose(ref)
+            print(f'{prefix}: shape={tree.shape},dtype={tree.dtype},device={tree.device},size={size_mb:.3f}MB,p={tree.data_ptr()} same tensor; o:{oo}')
+        else:
+            print(f'{prefix}: shape={tree.shape},dtype={tree.dtype},device={tree.device},size={size_mb:.3f}MB,p={tree.data_ptr()} not same tensor')
+
+
 class BaseCalibCacheLoader(ABC):
     """Base class for caching calibration dataset."""
 
@@ -130,6 +151,31 @@ class BaseCalibCacheLoader(ABC):
         assert isinstance(outputs, torch.Tensor), f"Invalid outputs type: {type(outputs)}"
         return {0: outputs.detach().cpu()}
 
+    def print_gpu_tensors(self, obj: any, prefix: str = ""):
+        """递归打印 obj 中所有在 GPU 上的 tensor"""
+        if isinstance(obj, torch.Tensor):
+            size_bytes = obj.element_size() * obj.nelement()
+            size_mb = size_bytes / 1024 / 1024
+            print(f"{prefix}: shape={obj.shape}, dtype={obj.dtype}, device={obj.device}, size={size_mb:.3f}MB, p={obj.data_ptr()}")
+        elif isinstance(obj, dict):
+            for k, v in obj.items():
+                self.print_gpu_tensors(v, prefix=f"{prefix}.{k}" if prefix else str(k))
+        elif isinstance(obj, (list, tuple)):
+            for i, v in enumerate(obj):
+                self.print_gpu_tensors(v, prefix=f"{prefix}[{i}]" if prefix else f"[{i}]")
+        else:
+            print(f'{prefix}: unknown type')
+
+        # 其他类型直接忽略
+
+    def print_module_forward_input_gpu(self, mfi: ModuleForwardInput):
+        print("=== ModuleForwardInput GPU Tensors ===")
+        for i, a in enumerate(mfi.args):
+            self.print_gpu_tensors(a, prefix=f"args[{i}]")
+        for k, v in mfi.kwargs.items():
+            self.print_gpu_tensors(v, prefix=f"kwargs['{k}']")
+
+
     def _layer_forward_pre_hook(
         self,
         m: nn.Module,
@@ -138,13 +184,28 @@ class BaseCalibCacheLoader(ABC):
         cache: list[ModuleForwardInput],
         save_all: bool = False,
     ) -> None:
+        vram1 = torch.cuda.memory_allocated()
         inputs = self._convert_layer_inputs(m, args, kwargs, save_all=save_all)
+        #print(f"cache len: {len(cache)}")
         if len(cache) > 0:
             inputs.args = tree_copy_with_ref(inputs.args, cache[0].args)
             inputs.kwargs = tree_copy_with_ref(inputs.kwargs, cache[0].kwargs)
+            #inputs.kwargs.pop('image_rotary_emb')
+            #inputs.kwargs.pop('temb')
+            #if 'encoder_hidden_states' in inputs.kwargs:
+            #    inputs.kwargs.pop('encoder_hidden_states')
+            #self.print_module_forward_input_gpu(inputs)
+            #check_is_ref(inputs.args, cache[0].args)
+            #check_is_ref(inputs.kwargs, cache[0].kwargs)
         else:
+            #self.print_module_forward_input_gpu(inputs)
             inputs.args = tree_map(lambda x: x, inputs.args)
             inputs.kwargs = tree_map(lambda x: x, inputs.kwargs)
+        vram2 = torch.cuda.memory_allocated()
+        diff = vram2 - vram1
+        diff = diff/1024/1024
+        vram2=vram2/1024/1024
+       # print(f'_layer_forward_pre_hook >> vram2:{vram2:0.3f}MB; diff:{diff:0.3f}MB')
         cache.append(inputs)
 
     @torch.inference_mode()
@@ -322,11 +383,17 @@ class BaseCalibCacheLoader(ABC):
                 num_samples = 0
                 for sample in self.iter_samples(*args, **kwargs):
                     num_samples += self.batch_size
+                    vram1 = torch.cuda.memory_allocated()
                     sample = sample.to(device=device)
                     try:
                         model(*sample.args, **sample.kwargs)
                     except EarlyStopException:
                         pass
+                    vram2 = torch.cuda.memory_allocated()
+                    diff = vram2 - vram1
+                    diff = diff/1024/1024
+                    vram2 = vram2/1024/1024
+        #            print(f'step: {num_samples}; vram {vram2} inc: {diff:0.3f}MB')
                     tbar.update(self.batch_size)
                     tbar.set_postfix({"ram usage": psutil.virtual_memory().percent})
                     if psutil.virtual_memory().percent > 90:
