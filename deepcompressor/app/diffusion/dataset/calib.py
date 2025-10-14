@@ -148,7 +148,8 @@ class DiffusionCalibCacheLoader(BaseCalibCacheLoader):
         super().__init__(dataset=config.build_dataset(), batch_size=config.batch_size)
         self.batch_size = min(config.batch_size, len(self.dataset))
         self.config = config
-
+        print(f'batch_size: {self.batch_size}')
+    
     def _init_cache(self, name: str, module: nn.Module) -> IOTensorsCache:
         """Initialize cache.
 

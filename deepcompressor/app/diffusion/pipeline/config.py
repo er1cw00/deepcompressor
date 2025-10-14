@@ -19,6 +19,7 @@ from diffusers.pipelines import (
 from diffusers import AutoencoderKL
 from omniconfig import configclass
 from torch import nn
+from diffusers.models.transformers import FluxTransformer2DModel
 from transformers import PreTrainedModel, PreTrainedTokenizer, T5EncoderModel
 
 from deepcompressor.data.utils.dtype import eval_dtype
@@ -361,14 +362,20 @@ class DiffusionPipelineConfig:
             pipeline = FluxKontextPipeline.from_pretrained(path, torch_dtype=dtype)
         elif name == "flux.1-kontext-redcraft":
             repo = "black-forest-labs/FLUX.1-Kontext-dev"
-            print(f'path: {path}')
-            text_encoder_2_path = "/root/autodl-tmp/awq-int4-flux.1-t5xxl.safetensors"
-            #text_encoder_2_path = "/home/eric/workspace/AI/sd/ComfyUI/models/clip/awq-int4-flux.1-t5xxl.safetensors"
+            print(f'path: {path} ; dtype:{dtype}')
+            transformer_path = '/root/autodl-tmp/models/redcraft/transformer'
+            text_encoder_2_path = "/root/autodl-tmp/models/awq-int4-flux.1-t5xxl.safetensors"
             print('flux.1-kontext-redcraft >> create pipeline')
             vae = AutoencoderKL.from_pretrained(repo, subfolder="vae", torch_dtype=dtype)
             text_encoder = CLIPTextModel.from_pretrained(repo, subfolder="text_encoder", torch_dtype=dtype)
             text_encoder_2 = NunchakuT5EncoderModel.from_pretrained(text_encoder_2_path, local_files_only=True, torch_dtype=dtype)#torch.bfloat16)
-            pipeline = FluxKontextPipeline.from_single_file(path, config=repo, text_encoder=text_encoder, text_encoder_2=text_encoder_2, vae=vae, torch_dtype=dtype)
+            transformer = FluxTransformer2DModel.from_pretrained(
+                transformer_path,
+                #device_map="auto",
+                torch_dtype=dtype,
+            )
+            
+            pipeline = FluxKontextPipeline.from_pretrained(repo, transformer=transformer, text_encoder=text_encoder, text_encoder_2=text_encoder_2, vae=vae, dtype=dtype)
         elif name.startswith("sana-"):
             if dtype == torch.bfloat16:
                 pipeline = SanaPipeline.from_pretrained(path, variant="bf16", torch_dtype=dtype, use_safetensors=True)
@@ -378,22 +385,13 @@ class DiffusionPipelineConfig:
                 pipeline = SanaPipeline.from_pretrained(path, torch_dtype=dtype)
         else:
             pipeline = AutoPipelineForText2Image.from_pretrained(path, torch_dtype=dtype)
-        #pipeline = pipeline.to(device)
+        
+        pipeline = pipeline.to('cpu')
         print(f"device : {device}")
-        for name in ["unet", "transformer", "vae", "text_encoder"]:
-            module = getattr(pipeline, name, None)
-            if isinstance(module, torch.nn.Module):
-                try:
-                    print(f">>> Moving {name} to {device} using to_empty()")
-                    module.to_empty(device=device)
-                except Exception as e:
-                    print(f">>> WARNING: {name}.to_empty({device}) failed: {e}")
-                    try:
-                        print(f">>> Falling back to {name}.to({device})")
-                        module.to(device)
-                    except Exception as ee:
-                        print(f">>> ERROR: {name}.to({device}) also failed: {ee}")
-                        
+        
+        #pipeline.enable_model_cpu_offload()
+        #pipeline.enable_sequential_cpu_offload()
+        pipeline.enable_vae_slicing()
         model = pipeline.unet if hasattr(pipeline, "unet") else pipeline.transformer
         replace_fused_linear_with_concat_linear(model)
         replace_up_block_conv_with_concat_conv(model)
